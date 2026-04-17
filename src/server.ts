@@ -22,7 +22,7 @@ const projectRoot = path.resolve(__dirname, "..");
 
 const PORT = Number(process.env.PORT ?? 3000);
 const HOST = process.env.HOST ?? "0.0.0.0";
-const BUNDLE_DIR = process.env.REMOTION_BUNDLE ?? path.join(projectRoot, "bundle");
+const BUNDLE_DIR = path.join(projectRoot, "bundle");
 const MAX_BODY = 64 * 1024; // plenty for two strings; reject payloads larger
 // Optional browser UI at GET / (off by default so prod deployments don't
 // accidentally expose a web form). Flip ENABLE_UI=1 to turn on.

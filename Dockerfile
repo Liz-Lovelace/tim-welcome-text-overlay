@@ -60,8 +60,7 @@ RUN node -e "import('@remotion/renderer').then(r => r.ensureBrowser())"
 
 ENV NODE_ENV=production \
     PORT=3000 \
-    HOST=0.0.0.0 \
-    REMOTION_BUNDLE=/app/bundle
+    HOST=0.0.0.0
 
 EXPOSE 3000
 

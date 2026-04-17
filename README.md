@@ -1,22 +1,21 @@
-# overlay-service
+# Overlay service
 
-HTTP service that renders a transparent **1920×1080 PNG** of a two-line Figma-matched
-Inter text overlay. Upper line is bold 60 px, lower is medium 36 px, both white with
-a stacked 4-layer black halo (matches the Figma "Stroke" effect used 4×).
+HTTP service that renders a transparent **1920×1080 PNG** of a text overlay.
 
 Long upper titles are truncated to 43 characters with an ellipsis so they never
 collide with the lower block. Lower text wraps naturally inside a 1218 px column.
 
 Composed ahead of time into `./bundle` at Docker build; Chromium boots once at
-container start and is shared across requests.
+container start and is shared across requests. This docker container can only render one image at a time, so it's pretty slow. If you need to render lots of images or render in parallel, then either run multiple containers, or change the code to be parallel. It uses a decent amount of resources too, for the remotion browser.
 
 ---
 
 ## Quick start
 
 ```bash
-docker build -t overlay-service .
-docker run --rm -p 3000:3000 overlay-service
+# docker build -t lizlovelace/tim-welcome-text-overlay . # do this if you want to recompile the docker image
+docker pull lizlovelace/tim-welcome-text-overlay
+docker run --rm -p 127.0.0.1:3000:3000 lizlovelace/tim-welcome-text-overlay
 
 curl -X POST http://localhost:3000/render \
   -H 'content-type: application/json' \
@@ -91,7 +90,6 @@ Env vars the server reads:
 | ------------------ | ------------------ | --------------------------------------- |
 | `PORT`             | `3000`             | HTTP listen port.                       |
 | `HOST`             | `0.0.0.0`          | HTTP bind address.                      |
-| `REMOTION_BUNDLE`  | `/app/bundle`      | Path to pre-built Remotion bundle.      |
 | `ENABLE_UI`        | unset (off)        | Set to `1` to expose `GET /` — a browser test form that hits `/render` and previews the output on a checkerboard + on the sample background. **Leave off in prod.** |
 
 ---
