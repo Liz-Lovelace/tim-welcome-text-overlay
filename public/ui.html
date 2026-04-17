@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>overlay preview · clod</title>
+<style>
+  :root {
+    --fg: #eee;
+    --muted: #888;
+    --bg: #111;
+    --accent: #7cc4ff;
+    --border: #2a2a2a;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--fg);
+    font: 14px/1.4 ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+  body { max-width: 1080px; margin: 0 auto; padding: 32px 24px 80px; }
+  h1 { font-size: 18px; font-weight: 600; letter-spacing: .02em; margin: 0 0 4px; }
+  p.sub { color: var(--muted); margin: 0 0 24px; }
+  form { display: grid; grid-template-columns: 1fr; gap: 12px; margin-bottom: 32px; }
+  label { display: grid; gap: 4px; font-size: 12px; color: var(--muted); }
+  label span.hint { color: #555; font-weight: normal; }
+  input, textarea {
+    font: inherit; color: var(--fg); background: #1b1b1b;
+    border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px;
+    resize: vertical; width: 100%;
+  }
+  input:focus, textarea:focus { outline: none; border-color: var(--accent); }
+  textarea { min-height: 56px; }
+  .row { display: flex; align-items: center; gap: 12px; }
+  button {
+    font: inherit; color: #111; background: var(--accent); border: 0;
+    padding: 10px 18px; border-radius: 6px; font-weight: 600; cursor: pointer;
+  }
+  button:disabled { opacity: .5; cursor: wait; }
+  .meta { color: var(--muted); font-size: 12px; }
+  .panel {
+    margin-bottom: 32px; border: 1px solid var(--border); border-radius: 8px;
+    overflow: hidden;
+  }
+  .panel-head {
+    padding: 10px 14px; background: #181818; border-bottom: 1px solid var(--border);
+    font-size: 12px; color: var(--muted); display: flex; justify-content: space-between;
+  }
+  .panel-head b { color: var(--fg); font-weight: 600; }
+  .stage {
+    position: relative; width: 100%; aspect-ratio: 16 / 9;
+  }
+  .checker {
+    background-color: #222;
+    background-image:
+      linear-gradient(45deg, #333 25%, transparent 25%),
+      linear-gradient(-45deg, #333 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, #333 75%),
+      linear-gradient(-45deg, transparent 75%, #333 75%);
+    background-size: 20px 20px;
+    background-position: 0 0, 0 10px, 10px -10px, -10px 0;
+  }
+  .stage img {
+    position: absolute; inset: 0; width: 100%; height: 100%; display: block;
+  }
+  .stage .bg { z-index: 0; }
+  .stage .fg { z-index: 1; }
+  .error {
+    padding: 12px 14px; background: #3a1f1f; color: #ffb4b4;
+    border-top: 1px solid var(--border); font-size: 12px; display: none;
+  }
+  .error.show { display: block; }
+  footer { margin-top: 40px; color: #555; font-size: 11px; }
+  footer code { color: #888; }
+</style>
+</head>
+<body>
+  <h1>overlay preview</h1>
+  <p class="sub">type text, hit render, see how it looks in prod.</p>
+
+  <form id="f">
+    <label>
+      <span>upper · bold 60px · clamps to 43 chars <span class="hint">(ellipsises past that)</span></span>
+      <input id="upper" name="upper" value="Kaindy lake Almaty" maxlength="200" autocomplete="off">
+    </label>
+    <label>
+      <span>lower · medium 36px · wraps inside 1218px</span>
+      <textarea id="lower" name="lower" rows="2" maxlength="400">a quiet signal drifts through the city at night, soft lights flicker and people move without knowing why</textarea>
+    </label>
+    <div class="row">
+      <button id="go" type="submit">render</button>
+      <span id="meta" class="meta"></span>
+    </div>
+  </form>
+
+  <div class="panel">
+    <div class="panel-head">
+      <b>1. transparent overlay</b>
+      <span>raw PNG on a checkerboard — transparent pixels show through</span>
+    </div>
+    <div class="stage checker">
+      <img id="raw" class="fg" alt="">
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-head">
+      <b>2. production preview</b>
+      <span>overlay composited over the sample background</span>
+    </div>
+    <div class="stage">
+      <img class="bg" src="/assets/background.png" alt="">
+      <img id="composed" class="fg" alt="">
+    </div>
+    <div id="err" class="error"></div>
+  </div>
+
+  <footer>
+    service: <code>POST /render</code> · <code>GET /render?upper=&amp;lower=</code> · health: <code>/healthz</code>
+  </footer>
+
+<script>
+(() => {
+  const f = document.getElementById('f');
+  const rawImg = document.getElementById('raw');
+  const composedImg = document.getElementById('composed');
+  const meta = document.getElementById('meta');
+  const err = document.getElementById('err');
+  const btn = document.getElementById('go');
+
+  async function render(e) {
+    if (e) e.preventDefault();
+    const upper = document.getElementById('upper').value;
+    const lower = document.getElementById('lower').value;
+
+    btn.disabled = true;
+    meta.textContent = 'rendering…';
+    err.classList.remove('show');
+    const t0 = performance.now();
+
+    try {
+      const res = await fetch('/render', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ upperText: upper, lowerText: lower }),
+      });
+      if (!res.ok) {
+        const msg = await res.text();
+        throw new Error(res.status + ' · ' + msg);
+      }
+      const serverMs = res.headers.get('x-render-ms');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      // Revoke the previous URLs once the new images have loaded.
+      const prevUrls = [rawImg.src, composedImg.src].filter(u => u.startsWith('blob:'));
+      rawImg.src = url;
+      composedImg.src = url;
+      setTimeout(() => prevUrls.forEach(u => URL.revokeObjectURL(u)), 1000);
+      const wallMs = Math.round(performance.now() - t0);
+      meta.textContent =
+        (blob.size / 1024).toFixed(1) + ' KB · server ' + serverMs + ' ms · wall ' + wallMs + ' ms';
+    } catch (e2) {
+      err.textContent = String(e2.message || e2);
+      err.classList.add('show');
+      meta.textContent = '';
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  f.addEventListener('submit', render);
+  // Render once on load with the default text.
+  render();
+})();
+</script>
+</body>
+</html>

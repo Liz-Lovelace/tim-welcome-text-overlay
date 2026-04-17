@@ -111,6 +111,25 @@ async function main() {
         return;
       }
 
+      if ((url === "/" || url === "/index.html") && method === "GET") {
+        const html = await fs.readFile(path.join(projectRoot, "public", "ui.html"));
+        send(200, html, "text/html; charset=utf-8");
+        return;
+      }
+
+      if (url === "/assets/background.png" && method === "GET") {
+        const png = await fs.readFile(
+          path.join(projectRoot, "public", "sample-background.png")
+        );
+        res.writeHead(200, {
+          "content-type": "image/png",
+          "content-length": png.length,
+          "cache-control": "public, max-age=3600",
+        });
+        res.end(png);
+        return;
+      }
+
       if (url.startsWith("/render")) {
         let props: InputProps;
         if (method === "POST") {
