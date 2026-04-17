@@ -92,6 +92,7 @@ Env vars the server reads:
 | `PORT`             | `3000`             | HTTP listen port.                       |
 | `HOST`             | `0.0.0.0`          | HTTP bind address.                      |
 | `REMOTION_BUNDLE`  | `/app/bundle`      | Path to pre-built Remotion bundle.      |
+| `ENABLE_UI`        | unset (off)        | Set to `1` to expose `GET /` — a browser test form that hits `/render` and previews the output on a checkerboard + on the sample background. **Leave off in prod.** |
 
 ---
 

@@ -24,6 +24,9 @@ const PORT = Number(process.env.PORT ?? 3000);
 const HOST = process.env.HOST ?? "0.0.0.0";
 const BUNDLE_DIR = process.env.REMOTION_BUNDLE ?? path.join(projectRoot, "bundle");
 const MAX_BODY = 64 * 1024; // plenty for two strings; reject payloads larger
+// Optional browser UI at GET / (off by default so prod deployments don't
+// accidentally expose a web form). Flip ENABLE_UI=1 to turn on.
+const ENABLE_UI = /^(1|true|yes|on)$/i.test(process.env.ENABLE_UI ?? "");
 
 async function getServeUrl(): Promise<string> {
   try {
@@ -111,13 +114,13 @@ async function main() {
         return;
       }
 
-      if ((url === "/" || url === "/index.html") && method === "GET") {
+      if (ENABLE_UI && (url === "/" || url === "/index.html") && method === "GET") {
         const html = await fs.readFile(path.join(projectRoot, "public", "ui.html"));
         send(200, html, "text/html; charset=utf-8");
         return;
       }
 
-      if (url === "/assets/background.png" && method === "GET") {
+      if (ENABLE_UI && url === "/assets/background.png" && method === "GET") {
         const png = await fs.readFile(
           path.join(projectRoot, "public", "sample-background.png")
         );
@@ -202,7 +205,9 @@ async function main() {
   });
 
   server.listen(PORT, HOST, () => {
-    console.log(`Listening on http://${HOST}:${PORT}`);
+    console.log(
+      `Listening on http://${HOST}:${PORT} (UI ${ENABLE_UI ? "enabled" : "disabled"})`
+    );
   });
 
   const shutdown = async (signal: string) => {
